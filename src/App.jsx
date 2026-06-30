@@ -7,6 +7,11 @@ import JobDetail from './pages/JobDetail'
 import Dashboard from './pages/Dashboard'
 import Navbar from './components/Navbar'
 import AIMatch from './pages/AIMatch'
+import RealJobs from './pages/RealJobs'
+import InterviewPrep from './pages/InterviewPrep'
+
+// Routes mein:
+
 
 function App() {
   return (
@@ -20,6 +25,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ai-match" element={<AIMatch />} />
+        <Route path="/real-jobs" element={<RealJobs />} />
+        <Route path="/interview-prep" element={<InterviewPrep />} />
       </Routes>
     </Router>
   )
