@@ -3,6 +3,7 @@ import API from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import JobCard from '../components/JobCard'
 import { Button, Badge, Input, Skeleton, EmptyState } from '../components/ui'
+import { extractTextFromPDF } from '../utils/pdfExtractor'
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineMapPin,
@@ -24,6 +25,13 @@ const RealJobs = () => {
   const [savingId, setSavingId] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
+
+  // Semantic (embedding-based) ranking of the current results against a resume
+  const [resumeText, setResumeText] = useState('')
+  const [showResumeBox, setShowResumeBox] = useState(false)
+  const [isRanking, setIsRanking] = useState(false)
+  const [isRanked, setIsRanked] = useState(false)
+  const [rankError, setRankError] = useState('')
 
   // Fetch already saved jobs if user is logged in
   useEffect(() => {
@@ -56,6 +64,8 @@ const RealJobs = () => {
     setLoading(true)
     setJobs([])
     setHasSearched(true)
+    setIsRanked(false)
+    setRankError('')
 
     try {
       const res = await API.get('/jobs/search', {
@@ -119,6 +129,56 @@ const RealJobs = () => {
     } finally {
       setSavingId(null)
       setTimeout(() => setFeedback(''), 3000)
+    }
+  }
+
+  const handleResumeFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setRankError('')
+    try {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setResumeText(await extractTextFromPDF(await file.arrayBuffer()))
+      } else {
+        setResumeText(await file.text())
+      }
+    } catch {
+      setRankError('Could not read that file. Try a text-based PDF or paste your resume text.')
+    }
+    e.target.value = ''
+  }
+
+  const handleSemanticRank = async () => {
+    if (resumeText.trim().length < 30) {
+      setRankError('Paste or upload your resume first.')
+      return
+    }
+    if (jobs.length === 0) {
+      setRankError('Search for jobs first, then rank them against your resume.')
+      return
+    }
+    setRankError('')
+    setIsRanking(true)
+    try {
+      const res = await API.post('/semantic/match', {
+        resumeText,
+        jobs: jobs.map((j) => ({
+          id: j.id,
+          title: j.title,
+          company: j.company,
+          location: j.location,
+          salary: j.salary,
+          description: j.description,
+          url: j.url,
+          created: j.created,
+        })),
+      })
+      setJobs(res.data.jobs || [])
+      setIsRanked(true)
+    } catch (err) {
+      setRankError(err.response?.data?.message || 'Semantic ranking failed. Please try again.')
+    } finally {
+      setIsRanking(false)
     }
   }
 
@@ -233,6 +293,56 @@ const RealJobs = () => {
           </div>
         </div>
 
+        {/* Semantic match: rank results by embedding similarity to the resume */}
+        {!loading && !error && jobs.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5 mb-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <HiOutlineSparkles className="w-4 h-4 text-indigo-600" />
+                  Rank these jobs by my resume
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Uses AI embeddings + cosine similarity to sort jobs by how closely they match your resume.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowResumeBox((v) => !v)}>
+                {showResumeBox ? 'Hide' : isRanked ? 'Re-rank' : 'Add resume'}
+              </Button>
+            </div>
+
+            {showResumeBox && (
+              <div className="mt-4 space-y-3">
+                <textarea
+                  value={resumeText}
+                  onChange={(e) => setResumeText(e.target.value)}
+                  rows={6}
+                  placeholder="Paste your resume text here, or upload a PDF/TXT below..."
+                  className="w-full text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="file"
+                    accept=".pdf,.txt,application/pdf,text/plain"
+                    onChange={handleResumeFile}
+                    className="text-xs text-slate-500"
+                  />
+                  <Button variant="ai" size="sm" onClick={handleSemanticRank} isLoading={isRanking}>
+                    Rank {jobs.length} jobs
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {rankError && <p className="text-xs text-rose-600 mt-3 font-medium">{rankError}</p>}
+            {isRanked && !rankError && (
+              <p className="text-xs text-emerald-700 mt-3 font-medium">
+                Sorted by semantic match to your resume (best match first).
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Error State */}
         {error && (
           <div className="mb-8 p-6 rounded-2xl bg-white border border-rose-200 shadow-subtle text-center">
@@ -274,13 +384,21 @@ const RealJobs = () => {
         {!loading && !error && jobs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {jobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                isSaved={savedIds.includes(String(job.id))}
-                isSaving={savingId === job.id}
-                onToggleSave={handleToggleSave}
-              />
+              <div key={job.id} className="flex flex-col gap-2">
+                {isRanked && typeof job.semanticScore === 'number' && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="success" size="sm">
+                      #{job.rank} · {job.semanticScore}% semantic match
+                    </Badge>
+                  </div>
+                )}
+                <JobCard
+                  job={job}
+                  isSaved={savedIds.includes(String(job.id))}
+                  isSaving={savingId === job.id}
+                  onToggleSave={handleToggleSave}
+                />
+              </div>
             ))}
           </div>
         )}
