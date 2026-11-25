@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import API from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import { getAiErrorMessage, normalizeInterviewResponse } from '../utils/aiValidation'
 import { Button, Badge, Card, EmptyState } from '../components/ui'
 import {
   HiOutlineSparkles,
@@ -62,33 +63,57 @@ const InterviewPrep = () => {
   const [error, setError] = useState('')
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(null)
   const [copiedIndex, setCopiedIndex] = useState(null)
+  const requestInFlight = useRef(false)
 
-  const handleGenerate = async () => {
-    if (!selectedRole) {
+  const handleGenerate = async (role = selectedRole) => {
+    if (requestInFlight.current) return
+    if (!role) {
       setError('Please select a target job role before generating questions.')
       return
     }
 
+    requestInFlight.current = true
     setError('')
     setLoading(true)
     setQuestions([])
-    setActiveQuestionIndex(0)
+    setActiveQuestionIndex(null)
+    setCopiedIndex(null)
 
     try {
       const res = await API.post('/ai/interview', {
-        role: selectedRole,
+        role,
         experience,
       })
-      if (Array.isArray(res.data?.questions) && res.data.questions.length > 0) {
-        setQuestions(res.data.questions)
-      } else {
-        setError('No questions returned from AI. Please try again.')
+      const normalizedQuestions = normalizeInterviewResponse(res.data)
+      if (!normalizedQuestions) {
+        setError('The AI returned an unexpected question set. Please try again.')
+        return
       }
+      setQuestions(normalizedQuestions)
+      setActiveQuestionIndex(0)
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to generate interview questions. Please verify your connection or try again.')
+      setError(getAiErrorMessage(err, 'Failed to generate interview questions. Please try again.'))
     } finally {
+      requestInFlight.current = false
       setLoading(false)
     }
+  }
+
+  const resetQuestions = () => {
+    setQuestions([])
+    setActiveQuestionIndex(null)
+    setCopiedIndex(null)
+    setError('')
+  }
+
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role)
+    resetQuestions()
+  }
+
+  const handleExperienceSelect = (level) => {
+    setExperience(level)
+    resetQuestions()
   }
 
   const handleCopy = async (text, index) => {
@@ -187,7 +212,9 @@ const InterviewPrep = () => {
                     <button
                       key={role}
                       type="button"
-                      onClick={() => setSelectedRole(role)}
+                      onClick={() => handleRoleSelect(role)}
+                      disabled={loading}
+                      aria-pressed={isSelected}
                       className={`
                         p-3 rounded-xl border text-xs font-semibold transition-all text-left flex items-center justify-between
                         ${isSelected
@@ -218,11 +245,14 @@ const InterviewPrep = () => {
                   {experienceLevels.map((lvl) => {
                     const isSelected = experience === lvl.value
                     return (
-                      <div
+                      <button
                         key={lvl.value}
-                        onClick={() => setExperience(lvl.value)}
+                        type="button"
+                        onClick={() => handleExperienceSelect(lvl.value)}
+                        disabled={loading}
+                        aria-pressed={isSelected}
                         className={`
-                          p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between
+                          w-full text-left p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between
                           ${isSelected
                             ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 ring-2 ring-indigo-500/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -239,7 +269,7 @@ const InterviewPrep = () => {
                           </div>
                         </div>
                         {isSelected && <HiOutlineCheck className="w-4 h-4 text-indigo-600" />}
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -415,8 +445,8 @@ const InterviewPrep = () => {
                 variant="primary"
                 size="md"
                 onClick={() => {
-                  if (!selectedRole) setSelectedRole('Frontend Developer')
-                  handleGenerate()
+                  handleRoleSelect('Frontend Developer')
+                  handleGenerate('Frontend Developer')
                 }}
               >
                 Start with Frontend Developer

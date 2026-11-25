@@ -4,6 +4,7 @@ import API from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { Button, Badge, Card } from '../components/ui'
 import { extractTextFromPDF } from '../utils/pdfExtractor'
+import { getAiErrorMessage, normalizeMatchResponse } from '../utils/aiValidation'
 import {
   HiOutlineSparkles,
   HiOutlineDocumentText,
@@ -96,6 +97,16 @@ const AIMatch = () => {
   const [fileError, setFileError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [isExtracting, setIsExtracting] = useState(false)
+  const [isProcessingFile, setIsProcessingFile] = useState(false)
+  const processingFile = useRef(false)
+  const matchRequestId = useRef(0)
+
+  const invalidateMatchRequest = () => {
+    matchRequestId.current += 1
+    setResult(null)
+    setError('')
+    setLoading(false)
+  }
 
   const formatFileSize = (bytes) => {
     if (!bytes) return '0 B'
@@ -105,7 +116,7 @@ const AIMatch = () => {
   }
 
   const processFile = async (file) => {
-    if (!file) return
+    if (!file || processingFile.current) return
 
     setFileError('')
 
@@ -116,40 +127,48 @@ const AIMatch = () => {
       return
     }
 
+    if (file.size === 0) {
+      setFileError('This file is empty. Please choose a resume file with content.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     // 2. Validate file extension
-    const extension = file.name.split('.').pop().toLowerCase()
+    const extension = file.name.split('.').pop()?.toLowerCase() || ''
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
       setFileError('Unsupported file format. Please upload a PDF, DOC, DOCX, PNG, JPG, or TXT file.')
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
+    processingFile.current = true
+    setIsProcessingFile(true)
+    setResumeText('')
+    invalidateMatchRequest()
+
     // 3. Update uploaded file state
     setUploadedFile({
       name: file.name,
       size: formatFileSize(file.size),
       ext: extension,
-      rawFile: file,
       isExtracted: false,
     })
 
-    // 4. Safe client-side extraction for plain text files
-    if (extension === 'txt') {
-      try {
+    try {
+      // 4. Safe client-side extraction for plain text files
+      if (extension === 'txt') {
         const text = await file.text()
         if (text && text.trim()) {
           setResumeText(text.trim())
           setUploadedFile((prev) => (prev ? { ...prev, isExtracted: true } : null))
+        } else {
+          setFileError('This text file is empty. Please paste your resume text manually.')
         }
-      } catch {
-        setFileError('Unable to read text from file. Please paste your resume text manually.')
       }
-    }
 
-    // 5. Client-side PDF extraction using pdfjs-dist
-    if (extension === 'pdf') {
-      setIsExtracting(true)
-      try {
+      // 5. Client-side PDF extraction using pdfjs-dist
+      if (extension === 'pdf') {
+        setIsExtracting(true)
         const arrayBuffer = await file.arrayBuffer()
         const extractedText = await extractTextFromPDF(arrayBuffer)
         if (extractedText && extractedText.trim()) {
@@ -158,20 +177,27 @@ const AIMatch = () => {
         } else {
           setFileError('This PDF contains no selectable text (it may be a scanned image). Please paste your resume text manually below.')
         }
-      } catch (err) {
+      }
+    } catch (err) {
+      if (extension === 'pdf') {
         if (err?.name === 'PasswordException') {
           setFileError('This PDF is password protected. Please upload an unlocked PDF or paste your resume text.')
         } else {
           setFileError('Unable to extract text from this PDF. Please verify the file or paste your resume text manually.')
         }
-      } finally {
-        setIsExtracting(false)
+      } else {
+        setFileError('Unable to read text from file. Please paste your resume text manually.')
       }
+    } finally {
+      setIsExtracting(false)
+      processingFile.current = false
+      setIsProcessingFile(false)
     }
   }
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (file) {
       processFile(file)
     }
@@ -200,7 +226,10 @@ const AIMatch = () => {
   }
 
   const handleRemoveFile = () => {
+    if (processingFile.current) return
     setUploadedFile(null)
+    setResumeText('')
+    invalidateMatchRequest()
     setFileError('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -208,6 +237,10 @@ const AIMatch = () => {
   }
 
   const handleMatch = async () => {
+    if (processingFile.current) {
+      setError('Please wait for resume processing to finish before analyzing.')
+      return
+    }
     if (!resumeText.trim()) {
       setError('Please paste or provide your resume text before running the analysis.')
       return
@@ -216,7 +249,12 @@ const AIMatch = () => {
       setError('Please select a target job position to compare against.')
       return
     }
+    if (resumeText.length > 20000) {
+      setError('Resume text must be 20,000 characters or fewer. Please shorten it before analyzing.')
+      return
+    }
 
+    const requestId = ++matchRequestId.current
     setError('')
     setLoading(true)
     setResult(null)
@@ -228,25 +266,45 @@ const AIMatch = () => {
         jobDescription: selectedJob.description,
         skills: selectedJob.skills,
       })
-      setResult(res.data)
+      if (requestId !== matchRequestId.current) return
+
+      const normalizedResult = normalizeMatchResponse(res.data)
+      if (!normalizedResult) {
+        setError('The AI returned an unexpected analysis. Please try again.')
+        return
+      }
+      setResult(normalizedResult)
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'AI analysis failed. Please verify your connection or try again.')
+      if (requestId === matchRequestId.current) {
+        setError(getAiErrorMessage(err, 'AI analysis failed. Please try again.'))
+      }
     } finally {
-      setLoading(false)
+      if (requestId === matchRequestId.current) {
+        setLoading(false)
+      }
     }
   }
 
   const handleLoadSampleResume = () => {
+    if (processingFile.current) return
     setResumeText(sampleResume)
+    setUploadedFile(null)
+    invalidateMatchRequest()
+    setFileError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
     if (!selectedJob) {
       setSelectedJob(targetJobs[0])
     }
-    setError('')
   }
 
   const handleReset = () => {
-    setResult(null)
-    setError('')
+    invalidateMatchRequest()
+  }
+
+  const handleResumeTextChange = (text) => {
+    setResumeText(text)
+    invalidateMatchRequest()
+    setUploadedFile((previous) => previous ? { ...previous, isExtracted: false } : null)
   }
 
   if (!user) {
@@ -388,6 +446,7 @@ const AIMatch = () => {
                 <button
                   type="button"
                   onClick={handleLoadSampleResume}
+                  disabled={isProcessingFile}
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
                 >
                   Load Sample
@@ -401,7 +460,7 @@ const AIMatch = () => {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !isProcessingFile && fileInputRef.current?.click()}
                     className={`
                       border-2 border-dashed rounded-xl p-4 sm:p-5 text-center cursor-pointer transition-all duration-200 select-none
                       ${isDragging
@@ -424,7 +483,7 @@ const AIMatch = () => {
                       <span className="text-indigo-600 hover:text-indigo-700 underline">Choose File</span> or drag & drop here
                     </p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      PDF, DOC, DOCX, PNG, JPG, JPEG (Max 5 MB)
+                      PDF, DOC, DOCX, PNG, JPG, JPEG, TXT (Max 5 MB)
                     </p>
                   </div>
                 ) : (
@@ -462,6 +521,7 @@ const AIMatch = () => {
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessingFile}
                           className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
                         >
                           Replace
@@ -469,6 +529,7 @@ const AIMatch = () => {
                         <button
                           type="button"
                           onClick={handleRemoveFile}
+                          disabled={isProcessingFile}
                           className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
                           title="Remove file"
                         >
@@ -551,9 +612,12 @@ const AIMatch = () => {
               </div>
 
               <textarea
+                id="resume-text"
                 rows={7}
                 value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
+                onChange={(e) => handleResumeTextChange(e.target.value)}
+                disabled={isProcessingFile}
+                aria-label="Resume text"
                 placeholder="Paste resume content here (e.g. Work experience, skills, projects, education)..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all resize-y font-mono"
               />
@@ -563,7 +627,7 @@ const AIMatch = () => {
                 {resumeText && (
                   <button
                     type="button"
-                    onClick={() => setResumeText('')}
+                    onClick={() => handleResumeTextChange('')}
                     className="text-rose-500 hover:underline"
                   >
                     Clear text
@@ -590,7 +654,10 @@ const AIMatch = () => {
                   return (
                     <div
                       key={job.id}
-                      onClick={() => setSelectedJob(job)}
+                      onClick={() => {
+                        setSelectedJob(job)
+                        invalidateMatchRequest()
+                      }}
                       className={`
                         p-3.5 rounded-xl border cursor-pointer transition-all text-left flex flex-col justify-between
                         ${isSelected
