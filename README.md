@@ -32,30 +32,15 @@
 ```bash
 git clone https://github.com/gopalnayak980/hireai.git
 cd hireai
-
-# Backend
-cd backend
-npm install
-cp .env.example .env     # then fill in your values
-npm start
-
-# Frontend (new terminal)
-cd frontend
 npm install
 npm run dev
 ```
 
 ## Environment Variables
 
-Create a `.env` in the backend folder (see `.env.example`):
+The frontend optionally reads `VITE_API_URL` from a `.env` file in the repository root to set the backend base URL. If it is unset, the API client uses its configured production backend URL. The URL may include `/api`; the client adds it when needed.
 
-```env
-MONGODB_URI=
-JWT_SECRET=
-GEMINI_API_KEY=
-ADZUNA_APP_ID=
-ADZUNA_APP_KEY=
-```
+The backend is maintained and configured separately.
 
 ## Author
 
