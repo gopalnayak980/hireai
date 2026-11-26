@@ -21,12 +21,12 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-              Next-generation career platform powered by AI. Match resumes with precision, discover live opportunities, and master technical interviews with real-time feedback.
+              Career tools to explore live listings, compare a resume with a role, and practice role-specific interview questions.
             </p>
             <div className="flex items-center gap-2 pt-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-indigo-400" />
               <span className="text-xs font-medium text-slate-400">
-                AI Engine & Live Feed Active
+                AI tools & live job search
               </span>
             </div>
           </div>

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import API from '../utils/api'
 import { Button, Badge, Card, EmptyState } from '../components/ui'
+import getSafeExternalUrl from '../utils/safeExternalUrl'
+import { hasSavedJobSource } from '../utils/jobSource'
 import {
   HiOutlineArrowLeft,
   HiOutlineBuildingOffice2,
@@ -14,6 +16,7 @@ import {
   HiOutlineBookmark,
   HiBookmark,
   HiOutlineCheck,
+  HiOutlineArrowTopRightOnSquare,
 } from 'react-icons/hi2'
 
 const jobsData = [
@@ -133,23 +136,35 @@ const JobDetail = () => {
   const { user } = useAuth()
   const [isSaved, setIsSaved] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [applied, setApplied] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [savedStatusError, setSavedStatusError] = useState('')
+  const [isOpeningApplication, setIsOpeningApplication] = useState(false)
+  const applicationClickInProgress = useRef(false)
 
   const job = jobsData.find((j) => String(j.id) === String(id))
+  const applicationUrl = getSafeExternalUrl(job?.applicationUrl) || getSafeExternalUrl(job?.url)
 
   // Fetch saved status on mount
   useEffect(() => {
-    if (user && job) {
-      API.get('/saved')
-        .then((res) => {
-          if (Array.isArray(res.data)) {
-            const hasSaved = res.data.some((s) => String(s.jobId) === String(job.id))
-            setIsSaved(hasSaved)
-          }
-        })
-        .catch(() => {})
+    let isCurrent = true
+    setSavedStatusError('')
+
+    if (!user || !job) {
+      setIsSaved(false)
+      return () => { isCurrent = false }
     }
+
+    API.get('/saved')
+      .then((res) => {
+        if (isCurrent && Array.isArray(res.data)) {
+          setIsSaved(hasSavedJobSource(res.data, job.id, 'sample'))
+        }
+      })
+      .catch(() => {
+        if (isCurrent) setSavedStatusError('Saved-job status is temporarily unavailable.')
+      })
+
+    return () => { isCurrent = false }
   }, [user, job])
 
   if (!job) {
@@ -160,11 +175,9 @@ const JobDetail = () => {
             title="Job Listing Not Found"
             description="The job position you are looking for does not exist or has expired."
             action={
-              <Link to="/jobs">
-                <Button variant="primary" size="md">
-                  Browse All Jobs
-                </Button>
-              </Link>
+              <Button as={Link} to="/sample-jobs" variant="primary" size="md">
+                Browse Sample Listings
+              </Button>
             }
           />
         </div>
@@ -173,6 +186,7 @@ const JobDetail = () => {
   }
 
   const handleToggleSave = async () => {
+    if (isSaving) return
     if (!user) {
       setFeedback('Please log in to bookmark this job!')
       setTimeout(() => setFeedback(''), 3000)
@@ -192,14 +206,25 @@ const JobDetail = () => {
           company: job.company,
           location: job.location,
           salary: job.salary,
-          url: `/jobs/${job.id}`,
+          source: 'sample',
+          url: `/jobs/sample/${job.id}`,
         })
         setIsSaved(true)
         setFeedback('Job saved to your dashboard!')
       }
     } catch (err) {
       if (err.response?.data?.message === 'Job already saved!') {
-        setIsSaved(true)
+        try {
+          const savedResponse = await API.get('/saved')
+          if (hasSavedJobSource(savedResponse.data, job.id, 'sample')) {
+            setIsSaved(true)
+            setFeedback('Job is already saved!')
+          } else {
+            setFeedback('A saved listing from another source uses this ID. Remove it from your dashboard before saving this listing.')
+          }
+        } catch {
+          setFeedback('Unable to verify the existing saved job. Please try again.')
+        }
       } else {
         setFeedback('Could not update saved job.')
       }
@@ -209,10 +234,17 @@ const JobDetail = () => {
     }
   }
 
-  const handleApply = () => {
-    setApplied(true)
-    setFeedback('Application submitted successfully!')
-    setTimeout(() => setFeedback(''), 4000)
+  const handleApply = (event) => {
+    if (applicationClickInProgress.current) {
+      event.preventDefault()
+      return
+    }
+    applicationClickInProgress.current = true
+    setIsOpeningApplication(true)
+    window.setTimeout(() => {
+      applicationClickInProgress.current = false
+      setIsOpeningApplication(false)
+    }, 1200)
   }
 
   return (
@@ -222,7 +254,7 @@ const JobDetail = () => {
         {/* Back Link */}
         <div className="mb-6">
           <Link
-            to="/jobs"
+            to="/sample-jobs"
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
           >
             <HiOutlineArrowLeft className="w-4 h-4" />
@@ -363,19 +395,37 @@ const JobDetail = () => {
             <Card padding="lg" className="border-slate-200 shadow-card">
               <h3 className="text-base font-bold text-slate-900 mb-2">Apply for this position</h3>
               <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                Submit your profile directly. Our AI will assess your resume fit and highlight your strengths.
+                {applicationUrl
+                  ? 'Continue to the external listing to review the role and submit your application.'
+                  : 'An external application link is not available for this listing.'}
               </p>
 
               <div className="space-y-3">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full shadow-btn-primary"
-                  disabled={applied}
-                  onClick={handleApply}
-                >
-                  {applied ? '✓ Applied Successfully' : 'Apply Now'}
-                </Button>
+                {applicationUrl ? (
+                  <Button
+                    as="a"
+                    href={applicationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleApply}
+                    aria-disabled={isOpeningApplication}
+                    className={`w-full shadow-btn-primary ${isOpeningApplication ? 'pointer-events-none' : ''}`}
+                    variant="primary"
+                    size="lg"
+                    disabled={isOpeningApplication}
+                    rightIcon={<HiOutlineArrowTopRightOnSquare className="w-4 h-4" />}
+                  >
+                    {isOpeningApplication ? 'Opening application site…' : 'Open application site'}
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="lg" className="w-full" disabled>
+                    Application link unavailable
+                  </Button>
+                )}
+
+                {savedStatusError && (
+                  <p role="status" className="text-xs text-amber-700">{savedStatusError}</p>
+                )}
 
                 <Button
                   variant="secondary"
@@ -393,6 +443,9 @@ const JobDetail = () => {
                 >
                   {isSaved ? 'Saved in Dashboard' : 'Save Job'}
                 </Button>
+                <Button as={Link} to="/applications" state={{ newApplication: { id: String(job.id), source: 'sample', title: job.title, company: job.company, location: job.location } }} variant="ghost" size="md" className="w-full">
+                  Track application
+                </Button>
               </div>
 
               {/* AI Resume Match Prompt Box */}
@@ -406,26 +459,16 @@ const JobDetail = () => {
                 <p className="text-xs text-slate-500 mb-3 leading-relaxed">
                   Analyze your existing resume against this role to identify matched keywords and skill gaps.
                 </p>
-                <Link to="/ai-match">
-                  <Button variant="ai" size="sm" className="w-full">
-                    Run AI Match
-                  </Button>
-                </Link>
+                <Button as={Link} to="/ai-match" variant="ai" size="sm" className="w-full">
+                  Run AI Match
+                </Button>
               </div>
 
               {/* Job Metadata Listing */}
               <div className="mt-6 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-500">
                 <div className="flex justify-between">
-                  <span>Job ID</span>
-                  <span className="font-semibold text-slate-700">#HA-{job.id}092</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Listing Status</span>
-                  <span className="font-semibold text-emerald-600">Active</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Verified Recruiter</span>
-                  <span className="font-semibold text-indigo-600">✓ Verified</span>
+                  <span>Listing source</span>
+                  <span className="font-semibold text-slate-700">Curated sample listing</span>
                 </div>
               </div>
             </Card>

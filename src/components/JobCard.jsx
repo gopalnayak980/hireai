@@ -1,6 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, Button } from './ui'
+import getSafeExternalUrl from '../utils/safeExternalUrl'
+import formatSalary from '../utils/formatSalary'
+import { getJobDetailPath } from '../utils/jobSource'
 import {
   HiOutlineMapPin,
   HiOutlineCurrencyRupee,
@@ -19,6 +22,7 @@ import {
 const JobCard = ({
   job,
   isSaved = false,
+  source,
   onToggleSave,
   isSaving = false,
   className = '',
@@ -52,6 +56,10 @@ const JobCard = ({
 
   const isRemote = job.type === 'Remote' || (job.location && job.location.toLowerCase().includes('remote'))
   const postedText = formatPostedDate(job.created)
+  const externalUrl = getSafeExternalUrl(job.url)
+  const jobSource = source || job.source
+  const jobId = job.id ?? job._id
+  const detailPath = getJobDetailPath(jobSource, jobId)
 
   return (
     <div
@@ -116,12 +124,10 @@ const JobCard = ({
             </span>
           )}
 
-          {job.salary && (
-            <span className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 font-medium text-slate-600">
-              <HiOutlineCurrencyRupee className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{job.salary}</span>
-            </span>
-          )}
+          <span className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 font-medium text-slate-600">
+            <HiOutlineCurrencyRupee className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>{formatSalary(job.salary, job.salary_min, job.salary_max)}</span>
+          </span>
 
           {isRemote && (
             <Badge variant="success" size="sm" dot>
@@ -181,32 +187,50 @@ const JobCard = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Internal Job Detail Link */}
-          {job.id && !job.url && (
-            <Link to={`/jobs/${job.id}`}>
-              <Button variant="secondary" size="sm">
-                View Details
-              </Button>
-            </Link>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {detailPath && (
+            <Button
+              as={Link}
+              to={detailPath}
+              state={jobSource === 'adzuna' ? { job: { ...job, id: String(jobId), source: jobSource } } : undefined}
+              variant="secondary"
+              size="sm"
+            >
+              View Details
+            </Button>
           )}
 
           {/* External Live Job Apply Link */}
-          {job.url && (
-            <a
-              href={job.url}
+          {externalUrl && (
+            <Button
+              as="a"
+              href={externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center"
+              variant="primary"
+              size="sm"
+              rightIcon={<HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />}
             >
-              <Button
-                variant="primary"
-                size="sm"
-                rightIcon={<HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />}
-              >
-                Apply Now
-              </Button>
-            </a>
+              Apply Now
+            </Button>
+          )}
+
+          {jobSource === 'adzuna' && !externalUrl && (
+            <Button variant="secondary" size="sm" disabled>
+              Apply link unavailable
+            </Button>
+          )}
+
+          {['adzuna', 'recruiter', 'sample'].includes(jobSource) && jobId !== undefined && jobId !== null && (
+            <Button
+              as={Link}
+              to="/applications"
+              state={{ newApplication: { id: String(jobId), source: jobSource, title: job.title, company: job.company, location: job.location, url: job.url } }}
+              variant="ghost"
+              size="sm"
+            >
+              Track
+            </Button>
           )}
         </div>
       </div>

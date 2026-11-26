@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import API from '../utils/api'
+import getSafeExternalUrl from '../utils/safeExternalUrl'
+import formatSalary from '../utils/formatSalary'
+import { getJobDetailPath, getSavedJobSource } from '../utils/jobSource'
 import { Button, Badge, Card, StatCard, EmptyState } from '../components/ui'
 import {
   HiOutlineSparkles,
   HiOutlineBookmark,
   HiOutlineMagnifyingGlass,
   HiOutlineChatBubbleLeftRight,
+  HiOutlineBriefcase,
   HiOutlineArrowRightOnRectangle,
   HiOutlineBuildingOffice2,
   HiOutlineMapPin,
@@ -25,39 +29,51 @@ const Dashboard = () => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [savedJobs, setSavedJobs] = useState([])
+  const [savedTotal, setSavedTotal] = useState(0)
+  const [savedPage, setSavedPage] = useState(1)
+  const [savedHasMore, setSavedHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [removingId, setRemovingId] = useState(null)
   const [feedback, setFeedback] = useState('')
+  const savedRequestVersion = useRef(0)
 
-  useEffect(() => {
-    if (user) {
-      fetchSavedJobs()
-    }
-  }, [user])
-
-  const fetchSavedJobs = async () => {
+  const fetchSavedJobs = useCallback(async () => {
+    const requestId = ++savedRequestVersion.current
     setLoading(true)
     setError('')
     try {
-      const res = await API.get('/saved')
+      const res = await API.get('/saved', { params: { page: savedPage } })
+      if (requestId !== savedRequestVersion.current) return
       if (Array.isArray(res.data)) {
         setSavedJobs(res.data)
+        const total = Number(res.headers['x-total-count'])
+        setSavedTotal(Number.isSafeInteger(total) && total >= 0 ? total : res.data.length)
+        setSavedHasMore(res.headers['x-has-more'] === 'true')
       }
-    } catch (err) {
-      setError('Unable to load saved jobs. Please verify your connection.')
+    } catch {
+      if (requestId === savedRequestVersion.current) setError('Unable to load saved jobs. Please verify your connection.')
     } finally {
-      setLoading(false)
+      if (requestId === savedRequestVersion.current) setLoading(false)
     }
-  }
+  }, [savedPage])
+
+  useEffect(() => {
+    if (user) void fetchSavedJobs()
+    else setLoading(false)
+    return () => { savedRequestVersion.current += 1 }
+  }, [user, fetchSavedJobs])
 
   const handleUnsave = async (jobId) => {
-    setRemovingId(jobId)
+    const normalizedId = String(jobId)
+    setRemovingId(normalizedId)
     try {
-      await API.delete(`/saved/${jobId}`)
-      setSavedJobs((prev) => prev.filter((j) => j.jobId !== jobId))
+      await API.delete(`/saved/${encodeURIComponent(normalizedId)}`)
+      setSavedJobs((prev) => prev.filter((job) => String(job.jobId) !== normalizedId))
+      setSavedTotal((current) => Math.max(0, current - 1))
+      if (savedJobs.length === 1 && savedPage > 1) setSavedPage((current) => current - 1)
       setFeedback('Job removed from saved list.')
-    } catch (err) {
+    } catch {
       setFeedback('Failed to remove job. Please try again.')
     } finally {
       setRemovingId(null)
@@ -83,16 +99,12 @@ const Dashboard = () => {
               Please sign in to your HireAI account to access your candidate dashboard, saved jobs, and profile settings.
             </p>
             <div className="flex flex-col gap-2.5">
-              <Link to="/login">
-                <Button variant="primary" size="lg" className="w-full">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="secondary" size="md" className="w-full">
-                  Create Account
-                </Button>
-              </Link>
+              <Button as={Link} to="/login" variant="primary" size="lg" className="w-full">
+                Sign In
+              </Button>
+              <Button as={Link} to="/register" variant="secondary" size="md" className="w-full">
+                Create Account
+              </Button>
             </div>
           </Card>
         </div>
@@ -158,7 +170,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Saved Positions"
-            value={loading ? '-' : savedJobs.length}
+            value={loading ? '-' : savedTotal}
             icon={<HiOutlineBookmark className="w-5 h-5 text-indigo-600" />}
             description="Bookmarked for application"
             variant="primary"
@@ -168,7 +180,7 @@ const Dashboard = () => {
             title="Account Status"
             value="Active"
             icon={<HiOutlineShieldCheck className="w-5 h-5 text-emerald-600" />}
-            description="Profile verified & ready"
+            description="Signed in to your HireAI account"
             variant="success"
           />
           <StatCard
@@ -182,8 +194,8 @@ const Dashboard = () => {
 
         {/* Quick Actions Bar */}
         <div className="mb-8">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Quick AI Workflows</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to="/real-jobs" className="group">
               <Card hover padding="md" className="border-slate-200 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-all">
@@ -193,7 +205,7 @@ const Dashboard = () => {
                   <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                     Live Job Search
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Explore 3,800+ live openings</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Search current listings from the live job feed</p>
                 </div>
               </Card>
             </Link>
@@ -225,6 +237,18 @@ const Dashboard = () => {
                 </div>
               </Card>
             </Link>
+
+            <Link to="/applications" className="group">
+              <Card hover padding="md" className="border-slate-200 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                  <HiOutlineBriefcase className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Application Tracker</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Track status and follow-ups</p>
+                </div>
+              </Card>
+            </Link>
           </div>
         </div>
 
@@ -237,7 +261,7 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-slate-900">Saved Jobs</h2>
                 <Badge variant="primary" size="sm">
-                  {savedJobs.length}
+                  {savedTotal}
                 </Badge>
               </div>
 
@@ -280,11 +304,26 @@ const Dashboard = () => {
               </div>
             )}
 
+            {!loading && !error && savedTotal > 0 && (
+              <nav aria-label="Saved job pages" className="flex items-center justify-center gap-3 pt-2">
+                <Button variant="secondary" size="sm" disabled={savedPage <= 1} onClick={() => setSavedPage((current) => Math.max(1, current - 1))}>Previous</Button>
+                <span className="text-xs text-slate-600">Page {savedPage}</span>
+                <Button variant="secondary" size="sm" disabled={!savedHasMore} onClick={() => setSavedPage((current) => current + 1)}>Next</Button>
+              </nav>
+            )}
+
             {/* Saved Jobs List */}
             {!loading && !error && savedJobs.length > 0 && (
               <div className="space-y-3">
-                {savedJobs.map((job) => (
-                  <div
+                {savedJobs.map((job) => {
+                  const source = getSavedJobSource(job)
+                  const detailPath = getJobDetailPath(source, job.jobId)
+                  const detailState = source === 'adzuna'
+                    ? { job: { id: String(job.jobId), source, title: job.title, company: job.company, location: job.location, salary: job.salary, url: job.url } }
+                    : undefined
+
+                  return (
+                    <div
                     key={job.jobId}
                     className="bg-white rounded-2xl border border-slate-200/90 shadow-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-card-hover transition-all"
                   >
@@ -307,43 +346,57 @@ const Dashboard = () => {
                               <span className="truncate max-w-[120px]">{job.location}</span>
                             </span>
                           )}
-                          {job.salary && (
-                            <span className="flex items-center gap-1 font-medium text-slate-600">
-                              <HiOutlineCurrencyRupee className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{job.salary}</span>
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1 font-medium text-slate-600">
+                            <HiOutlineCurrencyRupee className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{formatSalary(job.salary, job.salary_min, job.salary_max)}</span>
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end shrink-0">
-                      {job.url ? (
-                        <a
-                          href={job.url}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end">
+                      {detailPath && (
+                        <Button as={Link} to={detailPath} state={detailState} variant="secondary" size="sm">
+                          View Details
+                        </Button>
+                      )}
+
+                      <Button
+                        as={Link}
+                        to="/applications"
+                        state={{ newApplication: { id: String(job.jobId), source: source || 'manual', title: job.title, company: job.company, location: job.location, url: getSafeExternalUrl(job.url) || '' } }}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Track
+                      </Button>
+
+                      {getSafeExternalUrl(job.url) ? (
+                        <Button
+                          as="a"
+                          href={getSafeExternalUrl(job.url)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          variant="primary"
+                          size="sm"
+                          rightIcon={<HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />}
                         >
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            rightIcon={<HiOutlineArrowTopRightOnSquare className="w-3.5 h-3.5" />}
-                          >
-                            Apply
-                          </Button>
-                        </a>
+                          Apply
+                        </Button>
+                      ) : source === 'adzuna' ? (
+                        <Button variant="secondary" size="sm" disabled>
+                          Apply link unavailable
+                        </Button>
+                      ) : !detailPath ? (
+                        <span className="text-xs text-slate-500">Listing details unavailable</span>
                       ) : (
-                        <Link to={`/jobs/${job.jobId}`}>
-                          <Button variant="secondary" size="sm">
-                            View Job
-                          </Button>
-                        </Link>
+                        null
                       )}
 
                       <Button
                         variant="ghost"
                         size="sm"
-                        isLoading={removingId === job.jobId}
+                        isLoading={removingId === String(job.jobId)}
                         onClick={() => handleUnsave(job.jobId)}
                         className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2"
                         aria-label="Remove saved job"
@@ -351,8 +404,9 @@ const Dashboard = () => {
                         <HiOutlineTrash className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  )
+                })}
               </div>
             )}
 
@@ -361,13 +415,11 @@ const Dashboard = () => {
               <EmptyState
                 icon={<HiOutlineBookmark className="w-7 h-7 text-slate-400" />}
                 title="No saved jobs yet"
-                description="Save jobs you are interested in while browsing and they will appear here for easy tracking."
+                description="Save jobs while browsing to keep interesting opportunities together on your dashboard."
                 action={
-                  <Link to="/real-jobs">
-                    <Button variant="primary" size="md">
-                      Explore Live Jobs
-                    </Button>
-                  </Link>
+                  <Button as={Link} to="/real-jobs" variant="primary" size="md">
+                    Explore Live Jobs
+                  </Button>
                 }
               />
             )}
@@ -415,11 +467,9 @@ const Dashboard = () => {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-100">
-                <Link to="/ai-match">
-                  <Button variant="ai" size="sm" className="w-full">
-                    Match Resume with AI
-                  </Button>
-                </Link>
+                <Button as={Link} to="/ai-match" variant="ai" size="sm" className="w-full">
+                  Match Resume with AI
+                </Button>
               </div>
             </Card>
           </div>

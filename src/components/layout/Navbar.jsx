@@ -8,6 +8,7 @@ import {
   HiOutlineSparkles,
   HiOutlineChatBubbleLeftRight,
   HiOutlineSquares2X2,
+  HiOutlineClipboardDocumentList,
   HiOutlineBookmark,
   HiOutlineArrowRightOnRectangle,
   HiOutlineBars3,
@@ -92,6 +93,11 @@ const Navbar = () => {
 
   // Add dashboard link if authenticated
   if (user) {
+    navLinks.push({
+      label: 'Applications',
+      to: '/applications',
+      icon: <HiOutlineClipboardDocumentList className="w-4 h-4" />,
+    })
     navLinks.push({
       label: 'Dashboard',
       to: '/dashboard',
@@ -231,16 +237,12 @@ const Navbar = () => {
               </div>
             ) : (
               <>
-                <Link to="/login">
-                  <Button variant="ghost" size="sm">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/register">
-                  <Button variant="primary" size="sm">
-                    Get Started
-                  </Button>
-                </Link>
+                <Button as={NavLink} to="/login" variant="ghost" size="sm">
+                  Sign In
+                </Button>
+                <Button as={NavLink} to="/register" variant="primary" size="sm">
+                  Get Started
+                </Button>
               </>
             )}
           </div>
@@ -325,16 +327,12 @@ const Navbar = () => {
               </Button>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                <Link to="/login" className="w-full">
-                  <Button variant="secondary" size="md" className="w-full">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/register" className="w-full">
-                  <Button variant="primary" size="md" className="w-full">
-                    Get Started
-                  </Button>
-                </Link>
+                <Button as={NavLink} to="/login" variant="secondary" size="md" className="w-full">
+                  Sign In
+                </Button>
+                <Button as={NavLink} to="/register" variant="primary" size="md" className="w-full">
+                  Get Started
+                </Button>
               </div>
             )}
           </div>

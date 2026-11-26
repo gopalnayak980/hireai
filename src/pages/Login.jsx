@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Button, Card, Input } from '../components/ui'
 import {
@@ -20,6 +20,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -39,7 +40,11 @@ const Login = () => {
 
     try {
       await login(form)
-      navigate('/dashboard')
+      const destination = location.state?.from === '/applications' ? '/applications' : '/dashboard'
+      const destinationState = location.state?.newApplication
+        ? { newApplication: location.state.newApplication }
+        : undefined
+      navigate(destination, { state: destinationState, replace: true })
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -78,14 +83,14 @@ const Login = () => {
               <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                 <HiOutlineCheck className="w-3.5 h-3.5" />
               </div>
-              <span>Real-time Live Job Feed with Direct Apply</span>
+              <span>Live job search with external application links</span>
             </div>
 
             <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
               <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                 <HiOutlineCheck className="w-3.5 h-3.5" />
               </div>
-              <span>Instant ATS Resume Compatibility Analysis</span>
+              <span>AI-assisted resume compatibility analysis</span>
             </div>
 
             <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">

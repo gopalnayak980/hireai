@@ -45,13 +45,14 @@ const Home = () => {
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                AI-powered tools to discover relevant jobs, understand your resume match, and prepare for interviews with real-time feedback.
+                AI-powered tools to discover live listings, compare your resume with a role, and practice for interviews.
               </p>
 
               {/* Action Buttons */}
               <div className="pt-2 flex flex-col sm:flex-row gap-3.5 justify-center lg:justify-start">
-                <Link to="/real-jobs">
-                  <Button
+                <Button
+                    as={Link}
+                    to="/real-jobs"
                     variant="primary"
                     size="lg"
                     className="w-full sm:w-auto shadow-btn-primary"
@@ -59,10 +60,10 @@ const Home = () => {
                   >
                     Find Jobs
                   </Button>
-                </Link>
 
-                <Link to="/ai-match">
-                  <Button
+                <Button
+                    as={Link}
+                    to="/ai-match"
                     variant="secondary"
                     size="lg"
                     className="w-full sm:w-auto"
@@ -70,18 +71,17 @@ const Home = () => {
                   >
                     Analyze My Resume
                   </Button>
-                </Link>
               </div>
 
               {/* Trust Indicators */}
               <div className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-y-2 gap-x-6 text-xs text-slate-500 font-medium">
                 <div className="flex items-center gap-1.5">
                   <HiOutlineCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Real-time Live Job Feed</span>
+                  <span>Live job search</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <HiOutlineCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Instant ATS Resume Analysis</span>
+                  <span>AI-assisted resume analysis</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <HiOutlineCheck className="w-4 h-4 text-emerald-600" />
@@ -104,55 +104,47 @@ const Home = () => {
                         <HiOutlineBriefcase className="w-6 h-6" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-slate-900">Frontend Engineer</h2>
-                        <p className="text-xs text-indigo-600 font-medium">Google • Bangalore</p>
+                        <h2 className="text-base font-bold text-slate-900">Choose a target role</h2>
+                        <p className="text-xs text-indigo-600 font-medium">Compare with a job listing</p>
                       </div>
                     </div>
                     <Badge variant="success" size="sm" dot>
-                      Live Job
+                      Job search
                     </Badge>
                   </div>
 
-                  {/* AI Match Gauge & Score Section */}
+                  {/* Resume matching capabilities */}
                   <div className="my-5 p-4 rounded-xl bg-gradient-to-br from-indigo-50/70 via-violet-50/50 to-cyan-50/40 border border-indigo-100/80">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
                         <HiOutlineSparkles className="w-4 h-4 text-violet-600" />
                         <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                          AI Resume Match
+                          Resume insights
                         </span>
                       </div>
                       <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        High Match
+                        AI-assisted
                       </span>
                     </div>
 
-                    <div className="flex items-baseline justify-between mt-1">
-                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">94%</span>
-                      <span className="text-xs text-slate-500 font-medium">Strong profile fit</span>
-                    </div>
-
-                    <div className="w-full bg-slate-200/80 rounded-full h-2 mt-2 overflow-hidden">
-                      <div className="bg-gradient-to-r from-indigo-600 to-emerald-500 h-2 rounded-full w-[94%]" />
-                    </div>
+                    <p className="text-sm font-semibold text-slate-800 mt-2">Review skills and experience against a role</p>
                   </div>
 
-                  {/* Skills Matched Chips */}
+                  {/* Areas available for review */}
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-600">Matched Core Competencies</p>
+                    <p className="text-xs font-semibold text-slate-600">What you can review</p>
                     <div className="flex flex-wrap gap-1.5">
-                      <Badge variant="primary" size="sm">React.js</Badge>
-                      <Badge variant="primary" size="sm">JavaScript</Badge>
-                      <Badge variant="primary" size="sm">Tailwind CSS</Badge>
-                      <Badge variant="neutral" size="sm">REST APIs</Badge>
+                      <Badge variant="primary" size="sm">Relevant skills</Badge>
+                      <Badge variant="primary" size="sm">Experience</Badge>
+                      <Badge variant="primary" size="sm">Suggestions</Badge>
                     </div>
                   </div>
 
-                  {/* Simulated Action */}
+                  {/* Product capability summary */}
                   <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">12 - 18 LPA • Full Time</span>
+                    <span className="text-xs text-slate-400">Resume and job description</span>
                     <span className="text-xs font-semibold text-indigo-600 flex items-center gap-1">
-                      Ready to Apply <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                      Review your fit <HiOutlineArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </div>
                 </div>
@@ -164,7 +156,7 @@ const Home = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-900">AI Interview Prep</p>
-                    <p className="text-[11px] text-slate-500">10 Role-specific Q&As ready</p>
+                    <p className="text-[11px] text-slate-500">Practice for your target role</p>
                   </div>
                 </div>
 
@@ -179,23 +171,23 @@ const Home = () => {
       <section className="relative z-10 -mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           <Card padding="md" className="text-center shadow-subtle hover:shadow-card">
-            <p className="text-2xl sm:text-3xl font-extrabold text-indigo-600 tracking-tight">3,800+</p>
-            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Live Job Openings</p>
+            <p className="text-lg sm:text-xl font-extrabold text-indigo-600 tracking-tight">Live listings</p>
+            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Search roles through Adzuna</p>
           </Card>
 
           <Card padding="md" className="text-center shadow-subtle hover:shadow-card">
-            <p className="text-2xl sm:text-3xl font-extrabold text-violet-600 tracking-tight">Instant</p>
-            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">AI Resume Matching</p>
+            <p className="text-lg sm:text-xl font-extrabold text-violet-600 tracking-tight">Resume match</p>
+            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Compare skills with a role</p>
           </Card>
 
           <Card padding="md" className="text-center shadow-subtle hover:shadow-card">
-            <p className="text-2xl sm:text-3xl font-extrabold text-cyan-600 tracking-tight">10+ Roles</p>
-            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">AI Interview Practice</p>
+            <p className="text-lg sm:text-xl font-extrabold text-cyan-600 tracking-tight">Interview practice</p>
+            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Role-specific question sets</p>
           </Card>
 
           <Card padding="md" className="text-center shadow-subtle hover:shadow-card">
-            <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight">100%</p>
-            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Secure & Private</p>
+            <p className="text-lg sm:text-xl font-extrabold text-emerald-600 tracking-tight">Saved jobs</p>
+            <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">Keep opportunities on your dashboard</p>
           </Card>
         </div>
       </section>
@@ -222,9 +214,9 @@ const Home = () => {
               <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-5">
                 <HiOutlineMagnifyingGlass className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Real-Time Job Search</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Live Job Search</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Discover live opportunities using integrated job data with role, location, and salary filtering.
+                Find live listings by job title or keyword and location.
               </p>
             </div>
             <div className="pt-6">
@@ -276,9 +268,9 @@ const Home = () => {
               <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mb-5">
                 <HiOutlineBookmark className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Application Tracking</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Saved Jobs</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Keep track of saved jobs and your application progress all in one unified candidate dashboard.
+                Keep interesting roles together on your dashboard and return to them when you are ready to apply.
               </p>
             </div>
             <div className="pt-6">
@@ -315,7 +307,7 @@ const Home = () => {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Discover</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Search thousands of real job opportunities matching your target tech stack, salary expectations, and location.
+                Search live job listings by keyword and location.
               </p>
             </div>
 
@@ -409,11 +401,12 @@ const Home = () => {
               Ready to find your next opportunity?
             </h2>
             <p className="text-sm sm:text-base text-slate-600 mt-2">
-              Explore live job openings and find roles that match your skills.
+              Explore live job listings with keyword and location search.
             </p>
           </div>
-          <Link to="/real-jobs" className="shrink-0">
-            <Button
+          <Button
+              as={Link}
+              to="/real-jobs"
               variant="primary"
               size="lg"
               className="shadow-btn-primary"
@@ -421,7 +414,6 @@ const Home = () => {
             >
               Explore Jobs
             </Button>
-          </Link>
         </div>
       </section>
 
@@ -436,16 +428,12 @@ const Home = () => {
               Jump back into your dashboard, review your saved jobs, or run a new AI resume match.
             </p>
             <div className="flex flex-col sm:flex-row gap-3.5 justify-center pt-2">
-              <Link to="/dashboard">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                  Go to Dashboard
-                </Button>
-              </Link>
-              <Link to="/real-jobs">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto">
-                  Browse Live Jobs
-                </Button>
-              </Link>
+              <Button as={Link} to="/dashboard" variant="primary" size="lg" className="w-full sm:w-auto">
+                Go to Dashboard
+              </Button>
+              <Button as={Link} to="/real-jobs" variant="secondary" size="lg" className="w-full sm:w-auto">
+                Browse Live Jobs
+              </Button>
             </div>
           </div>
         ) : (
@@ -454,19 +442,15 @@ const Home = () => {
               Start your job search with HireAI.
             </h2>
             <p className="text-slate-600 max-w-xl mx-auto leading-relaxed">
-              Create your account to save jobs, track applications, and unlock AI-powered resume matching.
+              Create your account to save jobs and use AI-powered resume matching.
             </p>
             <div className="flex flex-col sm:flex-row gap-3.5 justify-center pt-2">
-              <Link to="/register">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto shadow-btn-primary">
-                  Get Started Free
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto">
-                  Sign In
-                </Button>
-              </Link>
+              <Button as={Link} to="/register" variant="primary" size="lg" className="w-full sm:w-auto shadow-btn-primary">
+                Get Started Free
+              </Button>
+              <Button as={Link} to="/login" variant="secondary" size="lg" className="w-full sm:w-auto">
+                Sign In
+              </Button>
             </div>
           </div>
         )}

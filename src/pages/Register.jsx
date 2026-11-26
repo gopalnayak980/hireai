@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Button, Card, Input, Select } from '../components/ui'
+import { Button, Card, Input } from '../components/ui'
 import {
   HiOutlineSparkles,
   HiOutlineUser,
@@ -19,13 +19,13 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    role: 'jobseeker',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const { register } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -50,7 +50,11 @@ const Register = () => {
 
     try {
       await register(form)
-      navigate('/dashboard')
+      const destination = location.state?.from === '/applications' ? '/applications' : '/dashboard'
+      const destinationState = location.state?.newApplication
+        ? { newApplication: location.state.newApplication }
+        : undefined
+      navigate(destination, { state: destinationState, replace: true })
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -194,20 +198,6 @@ const Register = () => {
                   value={form.password}
                   onChange={handleChange}
                   autoComplete="new-password"
-                />
-              </div>
-
-              {/* Role Selection */}
-              <div>
-                <Select
-                  label="I am joining as a"
-                  name="role"
-                  value={form.role}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'jobseeker', label: 'Job Seeker (Candidate)' },
-                    { value: 'recruiter', label: 'Recruiter (Hiring Manager)' },
-                  ]}
                 />
               </div>
 

@@ -13,6 +13,7 @@ import React from 'react'
  */
 const Button = React.forwardRef(({
   children,
+  as: Component = 'button',
   variant = 'primary',
   size = 'md',
   isLoading = false,
@@ -42,12 +43,15 @@ const Button = React.forwardRef(({
 
   const isDisabled = disabled || isLoading
 
+  const componentProps = Component === 'button'
+    ? { type, disabled: isDisabled }
+    : { 'aria-disabled': isDisabled || undefined }
+
   return (
-    <button
+    <Component
       ref={ref}
-      type={type}
-      disabled={isDisabled}
-      aria-busy={isLoading}
+      {...componentProps}
+      aria-busy={isLoading || undefined}
       className={`${baseStyles} ${sizeStyles[size] || sizeStyles.md} ${variantStyles[variant] || variantStyles.primary} ${className}`}
       {...props}
     >
@@ -83,7 +87,7 @@ const Button = React.forwardRef(({
           {rightIcon && <span className="inline-flex shrink-0 items-center justify-center">{rightIcon}</span>}
         </>
       )}
-    </button>
+    </Component>
   )
 })
 

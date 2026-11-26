@@ -26,44 +26,26 @@ const targetJobs = [
   {
     id: 1,
     title: 'Frontend Developer',
-    company: 'Google',
-    description: 'Build and maintain high-performance, accessible web applications with modern React ecosystem.',
-    skills: ['React', 'JavaScript', 'CSS', 'TypeScript', 'Tailwind'],
   },
   {
     id: 2,
     title: 'Backend Developer',
-    company: 'Amazon',
-    description: 'Build scalable microservices, secure APIs, and distributed event-driven systems.',
-    skills: ['Node.js', 'MongoDB', 'Express', 'AWS', 'Docker'],
   },
   {
     id: 3,
     title: 'Full Stack Developer',
-    company: 'Flipkart',
-    description: 'Design and deploy end-to-end e-commerce features handling millions of daily customer requests.',
-    skills: ['React', 'Node.js', 'MongoDB', 'GraphQL', 'Redux'],
   },
   {
     id: 4,
     title: 'Python Developer',
-    company: 'Microsoft',
-    description: 'Build enterprise-grade applications, data pipelines, and automation tools.',
-    skills: ['Python', 'Flask', 'SQL', 'FastAPI', 'Azure'],
   },
   {
     id: 5,
     title: 'React Developer',
-    company: 'Zomato',
-    description: 'Enhance high-traffic consumer web platform with fast page loads and reactive UI.',
-    skills: ['React', 'JavaScript', 'Tailwind', 'Next.js'],
   },
   {
     id: 6,
     title: 'AI/ML Engineer',
-    company: 'Infosys',
-    description: 'Develop intelligent solutions, model pipelines, and LLM implementations for enterprise clients.',
-    skills: ['Python', 'TensorFlow', 'AI', 'PyTorch', 'LLMs'],
   },
 ]
 
@@ -87,6 +69,7 @@ const AIMatch = () => {
   const { user } = useAuth()
   const [resumeText, setResumeText] = useState('')
   const [selectedJob, setSelectedJob] = useState(null)
+  const [jobDescription, setJobDescription] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -249,8 +232,16 @@ const AIMatch = () => {
       setError('Please select a target job position to compare against.')
       return
     }
+    if (!jobDescription.trim()) {
+      setError('Paste the target job description before running the analysis.')
+      return
+    }
     if (resumeText.length > 20000) {
       setError('Resume text must be 20,000 characters or fewer. Please shorten it before analyzing.')
+      return
+    }
+    if (jobDescription.trim().length > 12000) {
+      setError('Job description must be 12,000 characters or fewer.')
       return
     }
 
@@ -263,8 +254,8 @@ const AIMatch = () => {
       const res = await API.post('/ai/match', {
         resumeText: resumeText.trim(),
         jobTitle: selectedJob.title,
-        jobDescription: selectedJob.description,
-        skills: selectedJob.skills,
+        jobDescription: jobDescription.trim(),
+        skills: [],
       })
       if (requestId !== matchRequestId.current) return
 
@@ -320,16 +311,12 @@ const AIMatch = () => {
               Create an account or log in to unlock AI-powered resume matching and personalized skill gap analysis.
             </p>
             <div className="flex flex-col gap-2.5">
-              <Link to="/login">
-                <Button variant="primary" size="lg" className="w-full">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="secondary" size="md" className="w-full">
-                  Create Free Account
-                </Button>
-              </Link>
+              <Button as={Link} to="/login" variant="primary" size="lg" className="w-full">
+                Sign In
+              </Button>
+              <Button as={Link} to="/register" variant="secondary" size="md" className="w-full">
+                Create Free Account
+              </Button>
             </div>
           </Card>
         </div>
@@ -642,24 +629,26 @@ const AIMatch = () => {
                 <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
                   <HiOutlineBriefcase className="w-4 h-4" />
                 </div>
-                <h2 className="text-base font-bold text-slate-900">Step 2: Target Position</h2>
+                <h2 className="text-base font-bold text-slate-900">Step 2: Target Role & Job Description</h2>
               </div>
               <p className="text-xs text-slate-500 mb-4">
-                Choose the role you wish to evaluate your resume compatibility against:
+                Choose a role focus, then paste the actual job description for a grounded comparison:
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
                 {targetJobs.map((job) => {
                   const isSelected = selectedJob?.id === job.id
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={job.id}
                       onClick={() => {
                         setSelectedJob(job)
+                        setJobDescription('')
                         invalidateMatchRequest()
                       }}
                       className={`
-                        p-3.5 rounded-xl border cursor-pointer transition-all text-left flex flex-col justify-between
+                        p-3.5 rounded-xl border cursor-pointer transition-all text-left flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                         ${isSelected
                           ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
                           : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/60'
@@ -675,22 +664,34 @@ const AIMatch = () => {
                             <HiOutlineCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                           )}
                         </div>
-                        <p className="text-[11px] font-medium text-indigo-600 mt-0.5">{job.company}</p>
+                        <p className="text-[11px] font-medium text-indigo-600 mt-0.5">Role focus</p>
                       </div>
 
-                      <div className="flex flex-wrap gap-1 mt-2.5">
-                        {job.skills.slice(0, 3).map((skill) => (
-                          <span
-                            key={skill}
-                            className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    </button>
                   )
                 })}
+              </div>
+
+              <div className="mt-5">
+                <label htmlFor="job-description" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Target job description <span className="text-rose-600">(required)</span>
+                </label>
+                <textarea
+                  id="job-description"
+                  value={jobDescription}
+                  onChange={(event) => {
+                    setJobDescription(event.target.value)
+                    invalidateMatchRequest()
+                  }}
+                  maxLength={12000}
+                  rows={7}
+                  placeholder="Paste the job description you want to compare your resume with. Avoid including personal contact details."
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  aria-describedby="job-description-count"
+                />
+                <div id="job-description-count" className="mt-1 text-right text-[11px] text-slate-400">
+                  {jobDescription.length.toLocaleString()} / 12,000 characters
+                </div>
               </div>
             </Card>
 
@@ -720,7 +721,7 @@ const AIMatch = () => {
                   Ready to analyze your resume
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed mb-6">
-                  Paste your resume and select a target job position to run an instant deep ATS compatibility check.
+                  Paste your resume and select a target job position to review AI-generated compatibility insights.
                 </p>
                 <Button
                   variant="secondary"
@@ -763,7 +764,7 @@ const AIMatch = () => {
                   <Card padding="lg" className="border-slate-200 shadow-card text-center relative overflow-hidden">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Overall ATS Match Score
+                        Job Description Match Score
                       </span>
                       <button
                         type="button"
@@ -798,6 +799,83 @@ const AIMatch = () => {
                         "{result.verdict}"
                       </p>
                     )}
+                  </Card>
+                )}
+
+                {typeof result.atsScore === 'number' && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">ATS Readiness Estimate</h3>
+                        <p className="mt-1 text-xs text-slate-500">A practical formatting and content estimate, not a guarantee for any specific ATS.</p>
+                      </div>
+                      <div className="text-3xl font-black text-indigo-700">{result.atsScore}<span className="text-lg">/100</span></div>
+                    </div>
+                    {result.atsFactors.length > 0 && (
+                      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {result.atsFactors.map((factor, idx) => (
+                          <li key={idx} className="rounded-lg bg-indigo-50/60 px-3 py-2 text-xs text-slate-700">{factor}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                )}
+
+                {Object.values(result.sectionAnalysis).some((section) => section.status !== 'not_assessed') && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Resume Section Review</h3>
+                    <div className="space-y-3">
+                      {Object.entries(result.sectionAnalysis).map(([sectionName, section]) => (
+                        <div key={sectionName} className="rounded-xl border border-slate-100 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-xs font-bold capitalize text-slate-800">{sectionName}</h4>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold capitalize text-slate-600">
+                              {section.status.replaceAll('_', ' ')}
+                            </span>
+                          </div>
+                          {section.findings.length > 0 && <p className="mt-2 text-xs text-slate-600">{section.findings.join(' ')}</p>}
+                          {section.suggestions.length > 0 && (
+                            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-indigo-700">
+                              {section.suggestions.map((suggestion, idx) => <li key={idx}>{suggestion}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                {result.matchRationale && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2">Why this match score?</h3>
+                    <p className="text-sm leading-relaxed text-slate-700">{result.matchRationale}</p>
+                  </Card>
+                )}
+
+                {result.matchedSkills.length > 0 && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Skills found in your resume</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.matchedSkills.map((skill, idx) => <span key={idx} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">{skill}</span>)}
+                    </div>
+                  </Card>
+                )}
+
+                {result.missingSkills.length > 0 && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Job skills not evidenced in the resume</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.missingSkills.map((skill, idx) => <span key={idx} className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-800">{skill}</span>)}
+                    </div>
+                  </Card>
+                )}
+
+                {result.keywords.length > 0 && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Relevant job keywords</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.keywords.map((keyword, idx) => <span key={idx} className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800">{keyword}</span>)}
+                    </div>
                   </Card>
                 )}
 
@@ -872,6 +950,25 @@ const AIMatch = () => {
                           <span>{item}</span>
                         </li>
                       ))}
+                    </ul>
+                  </Card>
+                )}
+
+                {result.learningRecommendations.length > 0 && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-3">Skills to consider learning</h3>
+                    <ul className="list-disc space-y-1.5 pl-5 text-sm text-slate-700">
+                      {result.learningRecommendations.map((item, idx) => <li key={idx}>{item}</li>)}
+                    </ul>
+                  </Card>
+                )}
+
+                {result.bulletRecommendations.length > 0 && (
+                  <Card padding="lg" className="border-slate-200 shadow-card">
+                    <h3 className="text-sm font-bold text-slate-900 mb-2">Resume bullet improvements</h3>
+                    <p className="mb-3 text-xs text-slate-500">Use these as editing guidance and keep every claim accurate to your experience.</p>
+                    <ul className="space-y-2">
+                      {result.bulletRecommendations.map((item, idx) => <li key={idx} className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-slate-700">{item}</li>)}
                     </ul>
                   </Card>
                 )}

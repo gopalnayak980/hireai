@@ -4,6 +4,7 @@ import JobCard from '../components/JobCard'
 import { Button, Badge, Input, Select, EmptyState } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import API from '../utils/api'
+import { getSavedJobSource, hasSavedJobSource } from '../utils/jobSource'
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineSparkles,
@@ -97,15 +98,25 @@ const Jobs = () => {
 
   // Fetch saved jobs if user is authenticated
   useEffect(() => {
-    if (user) {
-      API.get('/saved')
-        .then((res) => {
-          if (Array.isArray(res.data)) {
-            setSavedJobIds(res.data.map((j) => String(j.jobId)))
-          }
-        })
-        .catch(() => {})
+    let isCurrent = true
+    if (!user) {
+      setSavedJobIds([])
+      return () => { isCurrent = false }
     }
+
+    API.get('/saved')
+      .then((res) => {
+        if (isCurrent && Array.isArray(res.data)) {
+          setSavedJobIds(res.data
+            .filter((job) => getSavedJobSource(job) === 'sample')
+            .map((job) => String(job.jobId)))
+        }
+      })
+      .catch(() => {
+        if (isCurrent) setFeedbackMessage('Unable to load saved-job status. You can still browse jobs.')
+      })
+
+    return () => { isCurrent = false }
   }, [user])
 
   // Handle Save / Unsave Job
@@ -130,16 +141,27 @@ const Jobs = () => {
           jobId: job.id,
           title: job.title,
           company: job.company,
+          source: 'sample',
           location: job.location,
           salary: job.salary,
-          url: job.url || '',
+          url: job.url || `/jobs/sample/${job.id}`,
         })
         setSavedJobIds((prev) => [...prev, strId])
         setFeedbackMessage('Job saved to your dashboard!')
       }
     } catch (err) {
       if (err.response?.data?.message === 'Job already saved!') {
-        setSavedJobIds((prev) => [...prev, strId])
+        try {
+          const savedResponse = await API.get('/saved')
+          if (hasSavedJobSource(savedResponse.data, job.id, 'sample')) {
+            setSavedJobIds((prev) => prev.includes(strId) ? prev : [...prev, strId])
+            setFeedbackMessage('Job is already saved.')
+          } else {
+            setFeedbackMessage('A saved listing from another source uses this ID. Remove it from your dashboard before saving this listing.')
+          }
+        } catch {
+          setFeedbackMessage('Unable to verify the existing saved job. Please try again.')
+        }
       } else {
         setFeedbackMessage('Action failed. Please try again.')
       }
@@ -188,19 +210,19 @@ const Jobs = () => {
                 Find your next opportunity
               </h1>
               <p className="text-sm text-slate-600 mt-1">
-                Search verified openings and discover roles tailored to your technical skills.
+                Browse featured role examples and search by skills, location, or job type.
               </p>
             </div>
 
-            <Link to="/ai-match">
-              <Button
+            <Button
+                as={Link}
+                to="/ai-match"
                 variant="ai"
                 size="md"
                 leftIcon={<HiOutlineSparkles className="w-4 h-4" />}
               >
                 Match with AI
               </Button>
-            </Link>
           </div>
         </div>
 
@@ -312,6 +334,7 @@ const Jobs = () => {
               <JobCard
                 key={job.id}
                 job={job}
+                source="sample"
                 isSaved={savedJobIds.includes(String(job.id))}
                 isSaving={savingId === job.id}
                 onToggleSave={handleToggleSave}
