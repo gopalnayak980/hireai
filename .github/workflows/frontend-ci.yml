@@ -1,3 +1,4 @@
+
 name: HireAI Frontend CI
 
 on:
@@ -26,9 +27,6 @@ jobs:
 
       - name: Run lint
         run: npm run lint
-
-      - name: Production build
-        run: npm run build
 
       - name: Production build
         run: npm run build
