@@ -6,7 +6,7 @@ import formatSalary from '../utils/formatSalary'
 import { getJobDetailPath } from '../utils/jobSource'
 import {
   HiOutlineMapPin,
-  HiOutlineCurrencyRupee,
+  HiOutlineBanknotes,
   HiOutlineBookmark,
   HiBookmark,
   HiOutlineArrowTopRightOnSquare,
@@ -125,8 +125,8 @@ const JobCard = ({
           )}
 
           <span className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 font-medium text-slate-600">
-            <HiOutlineCurrencyRupee className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>{formatSalary(job.salary, job.salary_min, job.salary_max)}</span>
+            <HiOutlineBanknotes className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>{formatSalary(job.salary, job.salaryMin ?? job.salary_min, job.salaryMax ?? job.salary_max, job.currencyCode)}</span>
           </span>
 
           {isRemote && (
@@ -225,7 +225,7 @@ const JobCard = ({
             <Button
               as={Link}
               to="/applications"
-              state={{ newApplication: { id: String(jobId), source: jobSource, title: job.title, company: job.company, location: job.location, url: job.url } }}
+              state={{ newApplication: { id: String(jobId), source: jobSource, country: job.country, currencyCode: job.currencyCode, title: job.title, company: job.company, location: job.location, url: job.url } }}
               variant="ghost"
               size="sm"
             >

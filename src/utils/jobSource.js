@@ -22,6 +22,17 @@ export const getSavedJobSource = (savedJob) => {
   return null
 }
 
-export const hasSavedJobSource = (savedJobs, jobId, source) => Array.isArray(savedJobs) && savedJobs.some((savedJob) =>
-  String(savedJob.jobId) === String(jobId) && getSavedJobSource(savedJob) === source
+export const getSavedJobCountry = (savedJob) => {
+  if (typeof savedJob?.country === 'string' && savedJob.country) return savedJob.country
+  return getSavedJobSource(savedJob) === 'adzuna' ? 'in' : null
+}
+
+export const getJobIdentityKey = (source, jobId, country) => (
+  `${source}:${source === 'adzuna' ? (country || 'in') : ''}:${String(jobId)}`
 )
+
+export const hasSavedJobSource = (savedJobs, jobId, source, country) => Array.isArray(savedJobs) && savedJobs.some((savedJob) => (
+  String(savedJob.jobId) === String(jobId) &&
+  getSavedJobSource(savedJob) === source &&
+  (source !== 'adzuna' || country === undefined || getSavedJobCountry(savedJob) === country)
+))

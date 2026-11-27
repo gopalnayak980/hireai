@@ -13,7 +13,7 @@ import {
   HiOutlineBookmark,
   HiBookmark,
   HiOutlineBriefcase,
-  HiOutlineCurrencyRupee,
+  HiOutlineBanknotes,
   HiOutlineMapPin,
   HiOutlineSparkles,
   HiOutlineUsers,
@@ -45,6 +45,9 @@ const SourceJobDetail = () => {
         company: typeof routeJob.company === 'string' ? routeJob.company : '',
         location: typeof routeJob.location === 'string' ? routeJob.location : '',
         salary: routeJob.salary,
+        salaryMin: routeJob.salaryMin,
+        salaryMax: routeJob.salaryMax,
+        currencyCode: routeJob.currencyCode,
         description: typeof routeJob.description === 'string' ? routeJob.description : '',
         url: typeof routeJob.url === 'string' ? routeJob.url : '',
         created: routeJob.created,
@@ -118,7 +121,7 @@ const SourceJobDetail = () => {
     API.get('/saved')
       .then((response) => {
         if (isCurrent && Array.isArray(response.data)) {
-          setIsSaved(hasSavedJobSource(response.data, job.id, source))
+          setIsSaved(hasSavedJobSource(response.data, job.id, source, source === 'adzuna' ? (job.country || 'in') : undefined))
         }
       })
       .catch(() => {
@@ -138,17 +141,20 @@ const SourceJobDetail = () => {
     setIsSaving(true)
     try {
       if (isSaved) {
-        await API.delete(`/saved/${encodeURIComponent(String(job.id))}`)
+        await API.delete(`/saved/${encodeURIComponent(String(job.id))}`, {
+          params: source === 'adzuna' ? { source, country: job.country || 'in' } : { source },
+        })
         setIsSaved(false)
         setFeedback('Job removed from saved jobs.')
       } else {
         await API.post('/saved', {
           jobId: job.id,
           source,
+          ...(source === 'adzuna' ? { country: job.country || 'in', currencyCode: job.currencyCode } : {}),
           title: job.title,
           company: job.company || 'Company not listed',
           location: job.location,
-          salary: typeof job.salary === 'string' ? job.salary : '',
+          salary: formatSalary(job.salary, job.salaryMin, job.salaryMax, job.currencyCode),
           url: job.url || getJobDetailPath(source, job.id),
         })
         setIsSaved(true)
@@ -158,7 +164,7 @@ const SourceJobDetail = () => {
       if (requestError.response?.data?.message === 'Job already saved!') {
         try {
           const savedResponse = await API.get('/saved')
-          if (hasSavedJobSource(savedResponse.data, job.id, source)) {
+          if (hasSavedJobSource(savedResponse.data, job.id, source, source === 'adzuna' ? (job.country || 'in') : undefined)) {
             setIsSaved(true)
             setFeedback('Job is already saved.')
           } else {
@@ -254,7 +260,7 @@ const SourceJobDetail = () => {
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Salary</span>
                   <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-800">
-                    <HiOutlineCurrencyRupee className="w-4 h-4 text-slate-400" />{formatSalary(job.salary, job.salary_min, job.salary_max)}
+                    <HiOutlineBanknotes className="w-4 h-4 text-slate-400" />{formatSalary(job.salary, job.salaryMin ?? job.salary_min, job.salaryMax ?? job.salary_max, job.currencyCode)}
                   </p>
                 </div>
                 {job.type && <div className="rounded-xl border border-slate-100 bg-slate-50 p-3.5"><span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Job type</span><p className="mt-1 text-sm font-bold text-slate-800">{job.type}</p></div>}
@@ -293,7 +299,7 @@ const SourceJobDetail = () => {
               <Button variant="secondary" size="md" className="mt-3 w-full" isLoading={isSaving} onClick={handleToggleSave} leftIcon={isSaved ? <HiBookmark className="w-4 h-4 text-amber-500" /> : <HiOutlineBookmark className="w-4 h-4" />}>
                 {isSaved ? 'Saved in Dashboard' : 'Save Job'}
               </Button>
-              <Button as={Link} to="/applications" state={{ newApplication: { id: String(job.id), source, title: job.title, company: job.company, location: job.location, url: applicationUrl || '' } }} variant="ghost" size="md" className="mt-2 w-full">
+              <Button as={Link} to="/applications" state={{ newApplication: { id: String(job.id), source, country: source === 'adzuna' ? (job.country || 'in') : undefined, currencyCode: source === 'adzuna' ? job.currencyCode : undefined, title: job.title, company: job.company, location: job.location, url: applicationUrl || '' } }} variant="ghost" size="md" className="mt-2 w-full">
                 Track application
               </Button>
               {savedStatusError && <p role="status" className="mt-3 text-xs text-amber-700">{savedStatusError}</p>}
